@@ -1,9 +1,13 @@
 
 const localStargates = {}
 const globalStargates = {}
+const syncedStargates = {}
+const syncedProto = {}
+const invites = {}
 global.globalStargates = globalStargates
 global.localStargates = localStargates
-
+global.syncedStargates = syncedStargates
+global.syncedProto = syncedProto
 
 
 function valueInNestedArray(nestedArray, value) {
@@ -36,7 +40,21 @@ function getKeyFromValue(map, value) {
   }
   return null;  // Returns null if no matching value is found
 }
-
+function findKeyByValue(targetValue) {
+  for (const key in syncedProto) {
+    const value = syncedProto[key];
+    if (Array.isArray(value) && value.includes(targetValue)) {
+      return key; // Found it!
+    }
+  }
+  return null; // Not found
+}
+function combindteam(linkid){
+  let key = findKeyByValue(linkid)
+  if (key != null) {
+    return Object.keys(localStargates[linkid]).concat(Object.keys(syncedStargates[key]))
+  }
+}
 ComputerCraftEvents.peripheral(event => {
     event.registerPeripheral("network_stargate", "the_network:network_stargate_per")
   
@@ -53,7 +71,7 @@ ComputerCraftEvents.peripheral(event => {
           address: stargate,
           owner: linkid,
         }
-        
+        console.info("[The Network (Stargate Script)] Registered Global Stargate " + name + " With the Address " + stargate + " As Owner " + linkid) 
         return  {status: true}
       })
       
@@ -64,6 +82,7 @@ ComputerCraftEvents.peripheral(event => {
         if (globalStargates[name] == null) { return {status: false , error: "This Name Does Not Exist"}}
         if (isOwned(name,linkid)){ return {status:false , error: "You Do not Own This Stargate"}}
         delete globalStargates[name] 
+        console.info("[The Network (Stargate Script)] Unregistered Global Stargate " + name + " As Owner " + linkid) 
         return {status:true}
       })
 
@@ -80,14 +99,17 @@ ComputerCraftEvents.peripheral(event => {
           address: stargate,
           owner: linkid,
         }
+        console.info("[The Network (Stargate Script)] Registered Local Stargate " + name + " With the Address " + stargate + " For " + linkid) 
         return  {status: true}
       })
       .method("unregisterLocal", (container, direction, args, computer) => {
         let name = args[0]
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        if (globalStargates[name] == null) { return {status: false , error: "This Name Does Not Exist"}}
+        if (localStargates[linkid][name] == null) { return {status: false , error: "This Name Does Not Exist"}}
         delete localStargates[linkid][name]
+        if (syncedStargates[findKeyByValue(linkid)][name]){delete syncedStargates[findKeyByValue(linkid)][name]}
+        console.info("[The Network (Stargate Script)] Unregistered Local Stargate " + name + " For " + linkid) 
         return {status:true}
       })
 
@@ -121,8 +143,44 @@ ComputerCraftEvents.peripheral(event => {
         const name = args[0]
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        if (localStargates[linkid][name] == null) {return {status: false, error:"This Entry Does not Exist"}}
-        return {status:true, value:{name: name, address: localStargates[linkid][name].address}}
+        if (syncedStargates[findKeyByValue(linkid)]){
+          if (syncedStargates[findKeyByValue(linkid)][name]){
+            return {status:true, value:{name: name, address: syncedStargates[findKeyByValue(linkid)][name].address}}
+          }
+        }
+        if (localStargates[linkid][name] == null ) {
+          return {status: false, error:"This Entry Does not Exist"}
+        }else {
+          return {status:true, value:{name: name, address: localStargates[linkid][name].address}}
+        }return {status:false, error:"Complete Fail"}
+      })
+      .method("teamIP", (container, direction, args, computer) => {
+        const method = args[0]
+        const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
+        if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
+        if (method == "create") {
+          syncedStargates[linkid] = {}
+          syncedProto[linkid] = []
+          return {status:true}
+        }else if (method == "invite") {
+          const pos = getKeyFromValue(wanAssignments, args[1])
+          invites[pos] = {
+            inviter: linkid,
+            ip: wanAssignments.get[linkid]
+          }
+          return {status:true}
+        }else if (method == "accept"){
+          if (invites[linkid == null]) { return {status:false, error:"No Invites"} }
+          if (findKeyByValue(linkid) != null) { return {status:false, error:"Already A part of a team"} }
+          syncedProto[invites[linkid].inviter].push(linkid)
+          return {status:true, info:{ip: invites[linkid].ip}}
+        }else if (method == "sync"){
+          if (findKeyByValue(linkid) == null) {return {status:false, error:"You Have No Team"}}
+          Object.assign(syncedStargates[findKeyByValue(linkid)], localStargates[linkid]);
+          return {status:true}
+        }else {
+          return {status:false ,error: "Invalid Input", vaild: ["create","invite","accept","sync"]}
+        }
       })
   })
   

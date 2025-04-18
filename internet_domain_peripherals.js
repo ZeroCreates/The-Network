@@ -103,7 +103,7 @@ function getOrAssignIps(container, computer) {
     wanAssignments.set(id, wan)
     ipRegistry[wan] = true
     messageQueue.wan[wan] = []
-    console.log("[The Network] Wan ip Registered At "+ id+ " As "+ wan)
+    console.info("[The Network] Wan ip Registered At "+ id+ " As "+ wan)
   }
 
   if (!peripheralGroups[id][computerId]) {
@@ -116,7 +116,7 @@ function getOrAssignIps(container, computer) {
     lanRegistry[lan] = true
     lanConnections[lan] = []
     messageQueue[id][lan] = []
-    console.log("[The Network] Lan ip Registered At "+ id + " For Pc " + computerId+ " As "+ lan)
+    console.info("[The Network] Lan ip Registered At "+ id + " For Pc " + computerId+ " As "+ lan)
   }
   let wan = wanAssignments.get(id)
   let lan = peripheralGroups[id][computerId]
@@ -253,16 +253,15 @@ ComputerCraftEvents.peripheral(event => {
       if (!domain || typeof domain == "string") return {status: false, error:"Invalid Domain Format"}
 
       const linkid = getParentKeysOfSubkey(peripheralGroups, computer.getID())
-      console.log(linkid.toString())
       if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
       const wan = wanAssignments.get(linkid[0])
-      console.log(wan)
       if (domainRegistry[domain] && domainRegistry[domain].location != linkid[0]) return {status: false, error:"you Dont Own This Domain"}
       domainRegistry[domain] = {
         location: linkid,
         ip: wan,
         ttl: DOMAIN_TTL_SECONDS
       }
+      console.info("[The Network] Domain Registered " + domain + " for "+ linkid + " or "+ wan)
       return  {status: true}
     })
 
@@ -272,6 +271,7 @@ ComputerCraftEvents.peripheral(event => {
       if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
       if (domainRegistry[domain] && domainRegistry[domain].location != linkid[0]) return {status: false, error:"you Dont Own This Domain"}
       delete domainRegistry[domain]
+      console.info("[The Network] Domain Unregistered " + domain + " for "+ linkid + " or "+ wan)
       return {status:true}
     })
 
