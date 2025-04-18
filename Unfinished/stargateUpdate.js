@@ -7,28 +7,13 @@ global.localStargates = localStargates
 
 
 function valueInNestedArray(nestedArray, value) {
-  return nestedArray.some(sub => sub.includes(value));
+  return Object.values(nestedArray).includes(value);
 }
-function parseSequence(str, delimiter = "-", expectedCount = 4) {
-  const parts = str
-    .split(delimiter)
-    .map(s => s.trim())            // clean up whitespace
-    .filter(s => s.length > 0);    // remove empty values
-
-  if (parts.length !== expectedCount) {
-    return null; // or throw an error, or return false
-  }
-
-  return parts.join(", ");
+function parseSequence(str, delimiter, expectedCount) {
+  const parts = str.split(delimiter).filter(part => part.trim().length > 0);
+  return parts.length > expectedCount;
 }
-function parseRead(str, delimiter = ", ") {
-  const parts = str
-    .split(delimiter)
-    .map(s => s.trim())            // clean up whitespace
-    .filter(s => s.length > 0);    // remove empty values
 
-  return parts.join("-");
-}
 function isOwned(name, owner){
   return globalStargates[name].owner == owner
 }
@@ -53,15 +38,15 @@ function getKeyFromValue(map, value) {
 }
 
 ComputerCraftEvents.peripheral(event => {
-    event.registerPeripheral("network_stargate", "the_network:domain_server_per")
+    event.registerPeripheral("network_stargate", "the_network:network_stargate_per")
   
       .method("registerGlobal", (container, direction, args, computer) => {
-        let stargate = splitWithSequenceNumbers(args[0], "-",7) 
+        let stargate = args[0]
         let name = args[1]
-        if (stargate == null){return {status:false, error:"Stargate Format Invaild"}}
+        if (parseSequence(stargate,"-",7)){return {status:false, error:"Stargate Format Invaild"}}
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        if (globalStargates[name] == null) {return {status: false, error: "This Stargate Name Already exists"}}
+        if (globalStargates[name]) {return {status: false, error: "This Stargate Name Already exists"}}
         if (valueInNestedArray(globalStargates,stargate)) return {status:false, error:"This Stargate Already exists In the Global Network"}
         
         globalStargates[name] = {
@@ -83,12 +68,12 @@ ComputerCraftEvents.peripheral(event => {
       })
 
       .method("registerLocal", (container, direction, args, computer) => {
-        let stargate = splitWithSequenceNumbers(args[0], "-",7) 
+        let stargate = args[0]
         let name = args[1]
-        if (stargate == null){return {status:false, error:"Stargate Format Invaild"}}
+        if (parseSequence(stargate,"-",7)){return {status:false, error:"Stargate Format Invaild"}}
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        if (globalStargates[name] == null) {return {status: false, error: "This Stargate Name Already exists"}}
+        if (globalStargates[name]) {return {status: false, error: "This Stargate Name Already exists"}}
         if (valueInNestedArray(globalStargates,stargate)) return {status:false, error:"This Stargate Already exists In the Global Network"}
         if (localStargates[linkid] == null) { localStargates[linkid]= {}}
         localStargates[linkid][name] = {
@@ -112,7 +97,7 @@ ComputerCraftEvents.peripheral(event => {
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
         if (globalStargates[name] == null) { return {status: false , error: "This Name Does Not Exist"}}
         
-        return {status:true, value:{name: name, address: parseRead(globalStargates[name].address)}}
+        return {status:true, value:{name: name, address:  globalStargates[name].address}}
       })
       .method("globalList", (container, direction, args, computer) => {
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
@@ -126,17 +111,18 @@ ComputerCraftEvents.peripheral(event => {
       })
       .method("requestLocal", (container, direction, args, computer) => {
         const pos = getKeyFromValue(wanAssignments, args[0])
-        const name = args[1]
+        const name = args[0]
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
         if (pos == null) { return {status: false, error:"Connection Timeout"} }
-        return {status:true, value:{name: name, address: parseRead(localStargates[pos][name].address)}}
+        return {status:true, value:{name: name, address:  localStargates[linkid][name].address}}
       })
       .method("requestMyLocal", (container, direction, args, computer) => {
-        const name = args[1]
+        const name = args[0]
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        return {status:true, value:{name: name, address: parseRead(localStargates[linkid][name].address)}}
+        if (localStargates[linkid][name] == null) {return {status: false, error:"This Entry Does not Exist"}}
+        return {status:true, value:{name: name, address: localStargates[linkid][name].address}}
       })
   })
   
