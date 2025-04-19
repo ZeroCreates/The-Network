@@ -1,13 +1,5 @@
 
-const localStargates = {}
-const globalStargates = {}
-const syncedStargates = {}
-const syncedProto = {}
 const invites = {}
-global.globalStargates = globalStargates
-global.localStargates = localStargates
-global.syncedStargates = syncedStargates
-global.syncedProto = syncedProto
 
 
 function valueInNestedArray(nestedArray, value) {
@@ -19,7 +11,7 @@ function parseSequence(str, delimiter, expectedCount) {
 }
 
 function isOwned(name, owner){
-  return globalStargates[name].owner == owner
+  return global.globalStargates[name].owner == owner
 }
 function getParentKeysOfSubkey(obj, targetSubKey) {
   const keys = [];
@@ -41,8 +33,8 @@ function getKeyFromValue(map, value) {
   return null;  // Returns null if no matching value is found
 }
 function findKeyByValue(targetValue) {
-  for (const key in syncedProto) {
-    const value = syncedProto[key];
+  for (const key in global.syncedProto) {
+    const value = global.syncedProto[key];
     if (Array.isArray(value) && value.includes(targetValue)) {
       return key; // Found it!
     }
@@ -52,7 +44,7 @@ function findKeyByValue(targetValue) {
 function combindteam(linkid){
   let key = findKeyByValue(linkid)
   if (key != null) {
-    return Object.keys(localStargates[linkid]).concat(Object.keys(syncedStargates[key]))
+    return Object.keys(global.localStargates[linkid]).concat(Object.keys(global.syncedStargates[key]))
   }
 }
 ComputerCraftEvents.peripheral(event => {
@@ -64,10 +56,10 @@ ComputerCraftEvents.peripheral(event => {
         if (parseSequence(stargate,"-",7)){return {status:false, error:"Stargate Format Invaild"}}
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        if (globalStargates[name]) {return {status: false, error: "This Stargate Name Already exists"}}
-        if (valueInNestedArray(globalStargates,stargate)) return {status:false, error:"This Stargate Already exists In the Global Network"}
+        if (global.globalStargates[name]) {return {status: false, error: "This Stargate Name Already exists"}}
+        if (valueInNestedArray(global.globalStargates,stargate)) return {status:false, error:"This Stargate Already exists In the Global Network"}
         
-        globalStargates[name] = {
+        global.globalStargates[name] = {
           address: stargate,
           owner: linkid,
         }
@@ -79,9 +71,9 @@ ComputerCraftEvents.peripheral(event => {
         let name = args[0]
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        if (globalStargates[name] == null) { return {status: false , error: "This Name Does Not Exist"}}
+        if (global.globalStargates[name] == null) { return {status: false , error: "This Name Does Not Exist"}}
         if (isOwned(name,linkid)){ return {status:false , error: "You Do not Own This Stargate"}}
-        delete globalStargates[name] 
+        delete global.globalStargates[name] 
         console.info("[The Network (Stargate Script)] Unregistered Global Stargate " + name + " As Owner " + linkid) 
         return {status:true}
       })
@@ -92,10 +84,10 @@ ComputerCraftEvents.peripheral(event => {
         if (parseSequence(stargate,"-",7)){return {status:false, error:"Stargate Format Invaild"}}
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        if (globalStargates[name]) {return {status: false, error: "This Stargate Name Already exists"}}
-        if (valueInNestedArray(globalStargates,stargate)) return {status:false, error:"This Stargate Already exists In the Global Network"}
-        if (localStargates[linkid] == null) { localStargates[linkid]= {}}
-        localStargates[linkid][name] = {
+        if (global.globalStargates[name]) {return {status: false, error: "This Stargate Name Already exists"}}
+        if (valueInNestedArray(global.globalStargates,stargate)) return {status:false, error:"This Stargate Already exists In the Global Network"}
+        if (global.localStargates[linkid] == null) { global.localStargates[linkid]= {}}
+        global.localStargates[linkid][name] = {
           address: stargate,
           owner: linkid,
         }
@@ -106,9 +98,9 @@ ComputerCraftEvents.peripheral(event => {
         let name = args[0]
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        if (localStargates[linkid][name] == null) { return {status: false , error: "This Name Does Not Exist"}}
-        delete localStargates[linkid][name]
-        if (syncedStargates[findKeyByValue(linkid)][name]){delete syncedStargates[findKeyByValue(linkid)][name]}
+        if (global.localStargates[linkid][name] == null) { return {status: false , error: "This Name Does Not Exist"}}
+        delete global.localStargates[linkid][name]
+        if (global.syncedStargates[findKeyByValue(linkid)][name]){delete global.syncedStargates[findKeyByValue(linkid)][name]}
         console.info("[The Network (Stargate Script)] Unregistered Local Stargate " + name + " For " + linkid) 
         return {status:true}
       })
@@ -117,19 +109,19 @@ ComputerCraftEvents.peripheral(event => {
         let name = args[0]
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        if (globalStargates[name] == null) { return {status: false , error: "This Name Does Not Exist"}}
+        if (global.globalStargates[name] == null) { return {status: false , error: "This Name Does Not Exist"}}
         
-        return {status:true, value:{name: name, address:  globalStargates[name].address}}
+        return {status:true, value:{name: name, address:  global.globalStargates[name].address}}
       })
       .method("globalList", (container, direction, args, computer) => {
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        return {status:true, value:Object.keys(globalStargates)}
+        return {status:true, value:Object.keys(global.globalStargates)}
       })
       .method("localList", (container, direction, args, computer) => {
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        return {status:true, value:Object.keys(localStargates[linkid])}
+        return {status:true, value:Object.keys(global.localStargates[linkid])}
       })
       .method("requestLocal", (container, direction, args, computer) => {
         const pos = getKeyFromValue(wanAssignments, args[0])
@@ -137,21 +129,21 @@ ComputerCraftEvents.peripheral(event => {
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
         if (pos == null) { return {status: false, error:"Connection Timeout"} }
-        return {status:true, value:{name: name, address:  localStargates[linkid][name].address}}
+        return {status:true, value:{name: name, address:  global.localStargates[linkid][name].address}}
       })
       .method("requestMyLocal", (container, direction, args, computer) => {
         const name = args[0]
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-        if (syncedStargates[findKeyByValue(linkid)]){
-          if (syncedStargates[findKeyByValue(linkid)][name]){
-            return {status:true, value:{name: name, address: syncedStargates[findKeyByValue(linkid)][name].address}}
+        if (global.syncedStargates[findKeyByValue(linkid)]){
+          if (global.syncedStargates[findKeyByValue(linkid)][name]){
+            return {status:true, value:{name: name, address: global.syncedStargates[findKeyByValue(linkid)][name].address}}
           }
         }
-        if (localStargates[linkid][name] == null ) {
+        if (global.localStargates[linkid][name] == null ) {
           return {status: false, error:"This Entry Does not Exist"}
         }else {
-          return {status:true, value:{name: name, address: localStargates[linkid][name].address}}
+          return {status:true, value:{name: name, address: global.localStargates[linkid][name].address}}
         }return {status:false, error:"Complete Fail"}
       })
       .method("teamIP", (container, direction, args, computer) => {
@@ -159,24 +151,24 @@ ComputerCraftEvents.peripheral(event => {
         const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
         if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
         if (method == "create") {
-          syncedStargates[linkid] = {}
-          syncedProto[linkid] = []
+          global.syncedStargates[linkid] = {}
+          global.syncedProto[linkid] = []
           return {status:true}
         }else if (method == "invite") {
           const pos = getKeyFromValue(wanAssignments, args[1])
           invites[pos] = {
             inviter: linkid,
-            ip: wanAssignments.get[linkid]
+            ip: wanAssignments[linkid]
           }
           return {status:true}
         }else if (method == "accept"){
           if (invites[linkid == null]) { return {status:false, error:"No Invites"} }
           if (findKeyByValue(linkid) != null) { return {status:false, error:"Already A part of a team"} }
-          syncedProto[invites[linkid].inviter].push(linkid)
+          global.syncedProto[invites[linkid].inviter].push(linkid)
           return {status:true, info:{ip: invites[linkid].ip}}
         }else if (method == "sync"){
           if (findKeyByValue(linkid) == null) {return {status:false, error:"You Have No Team"}}
-          Object.assign(syncedStargates[findKeyByValue(linkid)], localStargates[linkid]);
+          Object.assign(global.syncedStargates[findKeyByValue(linkid)], global.localStargates[linkid]);
           return {status:true}
         }else {
           return {status:false ,error: "Invalid Input", vaild: ["create","invite","accept","sync"]}

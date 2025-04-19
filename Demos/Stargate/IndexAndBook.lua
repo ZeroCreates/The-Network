@@ -249,7 +249,7 @@ local function commandInput()
       local name = read()
       local reply = sgnet["unregister" .. scope:sub(1,1):upper() .. scope:sub(2)](name)
       print(reply.status and "Removed From " .. scope or "Error: " .. tostring(reply.error))
-    elseif input == "load" then
+    elseif input == "upload()" then
       local location = disk.getMountPath(peripheral.getName(peripheral.find("drive")))
       if location then
         local file = fs.open(fs.combine(location, "loadFile.txt"), "r")
@@ -265,9 +265,9 @@ local function commandInput()
         print("List Finished")
       end
 
-    elseif input == "save" then
+    elseif input == "download()" then
       local names = {}
-      print("Enter names to upload. Type 'end' to finish.")
+      print("Enter names to Download. Type 'end' to finish.")
       while true do
         local name = read()
         if string.lower(name) == "end" then break end

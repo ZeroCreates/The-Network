@@ -1,4 +1,3 @@
-// internet_domain_peripherals.js with per-peripheral LAN network, domain-aware send/receive, and DNS polling (no energy system)
 
 const DOMAIN_TTL_SECONDS = 60
 
@@ -13,18 +12,7 @@ const activeDomainServers = []
 const openPorts = {}
 let nextLanId = 2
 const peripheralGroups = {}
-global.DOMAIN_TTL_SECONDS = DOMAIN_TTL_SECONDS
-global.domainRegistry = domainRegistry
-global.wanAssignments = wanAssignments
-global.lanAssignments = lanAssignments
-global.ipRegistry = ipRegistry
-global.lanRegistry = lanRegistry
-global.lanConnections = lanConnections
-global.messageQueue = messageQueue
-global.activeDomainServers = activeDomainServers
-global.nextLanId = nextLanId
-global.peripheralGroups = peripheralGroups
-global.openPorts = openPorts
+// internet_domain_peripherals.js with per-peripheral LAN network, domain-aware send/receive, and DNS polling (no energy system)
 function generateRandomWanIp() {
   let ip
   do {
@@ -34,7 +22,7 @@ function generateRandomWanIp() {
       Math.floor(Math.random() * 256) + "." +
       Math.floor(Math.random() * 256)
     )
-  } while (ipRegistry[ip])
+  } while (global.ipRegistry[ip])
   return ip
 }
 function valueInNestedObject(group, targetValue) {
@@ -95,31 +83,31 @@ function getOrAssignIps(container, computer) {
   const id = `${pos.x},${pos.y},${pos.z}`
   const computerId = computer.getID()
 
-  if (!peripheralGroups[id]) peripheralGroups[id] = {}
+  if (!global.peripheralGroups[id]) global.peripheralGroups[id] = {}
   if (!messageQueue[id]) messageQueue[id] = {}
   if (!messageQueue.wan) messageQueue.wan = {}
-  if (!wanAssignments.has(id)) {
+  if (!global.wanAssignments[id]) {
     let wan = generateRandomWanIp()
-    wanAssignments.set(id, wan)
-    ipRegistry[wan] = true
+    global.wanAssignments[id] = wan
+    global.ipRegistry[wan] = true
     messageQueue.wan[wan] = []
     console.info("[The Network] Wan ip Registered At "+ id+ " As "+ wan)
   }
 
-  if (!peripheralGroups[id][computerId]) {
-    if (findPath(peripheralGroups,computerId )){
-      let path = findPath(peripheralGroups,computerId )
-      removeValueAtPath(peripheralGroups,path)
+  if (!global.peripheralGroups[id][computerId]) {
+    if (findPath(global.peripheralGroups,computerId )){
+      let path = findPath(global.peripheralGroups,computerId )
+      removeValueAtPath(global.peripheralGroups,path)
     }
-    let lan = "192.168.0." + nextLanId++
-    peripheralGroups[id][computerId] = lan
-    lanRegistry[lan] = true
-    lanConnections[lan] = []
+    let lan = "192.168.0." + global.nextLanId++
+    global.peripheralGroups[id][computerId] = lan
+    global.lanRegistry[lan] = true
+    global.lanConnections[lan] = []
     messageQueue[id][lan] = []
     console.info("[The Network] Lan ip Registered At "+ id + " For Pc " + computerId+ " As "+ lan)
   }
-  let wan = wanAssignments.get(id)
-  let lan = peripheralGroups[id][computerId]
+  let wan = global.wanAssignments[id]
+  let lan = global.peripheralGroups[id][computerId]
 
   if (!openPorts[wan]) openPorts[wan] = {}
   return {
@@ -148,11 +136,11 @@ ComputerCraftEvents.peripheral(event => {
       let to = args[0]
       const message = args[1]
 
-      if (!ipRegistry[to] && domainRegistry[to]) {
-        to = domainRegistry[to].ip
+      if (!global.ipRegistry[to] && global.domainRegistry[to]) {
+        to = global.domainRegistry[to].ip
       }
 
-      if (!ipRegistry[to]) return {status:false , error:"Connection Timeout",port: port}
+      if (!global.ipRegistry[to]) return {status:false , error:"Connection Timeout",port: port}
       if (!messageQueue.wan[to]) messageQueue.wan[to] = []
 
       messageQueue.wan[to].push({ port: port, message: message })
@@ -192,7 +180,7 @@ ComputerCraftEvents.peripheral(event => {
       const toIp = args[0]
       const message = args[1]
 
-      const group = peripheralGroups[fromInfo.posId]
+      const group = global.peripheralGroups[fromInfo.posId]
       if (!group) return  {status: false, error:"Error Connecting To Network Modem"}
       const targetFound = valueInNestedObject(group, toIp)
       if (!targetFound) return {status: false, error:"Connection Timeout"}
@@ -212,10 +200,10 @@ ComputerCraftEvents.peripheral(event => {
     .method("ping", (container, direction, args, computer) => {
       let to = args[0]
       const now = Date.now()
-      if (!ipRegistry[to] && domainRegistry[to]) {
-        to = domainRegistry[to].ip
+      if (!global.ipRegistry[to] && global.domainRegistry[to]) {
+        to = global.domainRegistry[to].ip
       }
-      if (!ipRegistry[to]) return {status: false, error:"Connection Timeout"}
+      if (!global.ipRegistry[to]) return {status: false, error:"Connection Timeout"}
 
       if (!messageQueue[to]) messageQueue[to] = []
       messageQueue[to].push({ from: getOrAssignIps(container, computer).wan, message: `ping:${now}` })
@@ -252,14 +240,13 @@ ComputerCraftEvents.peripheral(event => {
       const domain = args[0]
       if (!domain || typeof domain == "string") return {status: false, error:"Invalid Domain Format"}
 
-      const linkid = getParentKeysOfSubkey(peripheralGroups, computer.getID())
+      const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
       if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-      const wan = wanAssignments.get(linkid[0])
-      if (domainRegistry[domain] && domainRegistry[domain].location != linkid[0]) return {status: false, error:"you Dont Own This Domain"}
-      domainRegistry[domain] = {
+      const wan = global.wanAssignments[linkid[0]]
+      if (global.domainRegistry[domain] && global.domainRegistry[domain].location != linkid[0]) return {status: false, error:"you Dont Own This Domain"}
+      global.domainRegistry[domain] = {
         location: linkid,
-        ip: wan,
-        ttl: DOMAIN_TTL_SECONDS
+        ip: wan
       }
       console.info("[The Network] Domain Registered " + domain + " for "+ linkid + " or "+ wan)
       return  {status: true}
@@ -267,18 +254,18 @@ ComputerCraftEvents.peripheral(event => {
 
     .method("unregister", (container, direction, args, computer) => {
       const domain = args[0]
-      const linkid = getParentKeysOfSubkey(peripheralGroups, computer.getID())
+      const linkid = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())
       if (linkid.length == 0) {return {status: false, error:"Please Attach A Network Modem"}}
-      if (domainRegistry[domain] && domainRegistry[domain].location != linkid[0]) return {status: false, error:"you Dont Own This Domain"}
-      delete domainRegistry[domain]
+      if (global.domainRegistry[domain] && global.domainRegistry[domain].location != linkid[0]) return {status: false, error:"you Dont Own This Domain"}
+      delete global.domainRegistry[domain]
       console.info("[The Network] Domain Unregistered " + domain + " for "+ linkid + " or "+ wan)
       return {status:true}
     })
 
     .method("poll", (container, direction, args, computer) => {
       const ips = getOrAssignIps(container, computer)
-      const id = getParentKeysOfSubkey(peripheralGroups, computer.getID())    
-      const ip = wanAssignments.get(id[0])
+      const id = getParentKeysOfSubkey(global.peripheralGroups, computer.getID())    
+      const ip = global.wanAssignments[id[0]]
       if (!ip || !messageQueue.wan[ip]) return {status: false, error: "No Queue"}
 
       const queue = messageQueue.wan[ip]
